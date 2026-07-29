@@ -173,10 +173,14 @@
   <div class="login-box">
     <div class="login-icon">🧭</div>
     <h2>AI 績效導航系統</h2>
-    <p>此系統僅供授權員工使用<br>請輸入存取密碼</p>
-    <input type="password" class="login-input" id="passwordInput" placeholder="輸入密碼" onkeydown="if(event.key==='Enter') checkPassword()"/>
-    <button class="login-btn" onclick="checkPassword()">進入系統</button>
+    <p id="loginSubtitle">此系統僅供授權員工使用<br>請輸入存取密碼</p>
+    <input type="password" class="login-input" id="passwordInput" placeholder="輸入密碼" onkeydown="if(event.key==='Enter') handlePasswordAction()"/>
+    <input type="password" class="login-input hidden" id="passwordConfirmInput" placeholder="再輸入一次確認" onkeydown="if(event.key==='Enter') handlePasswordAction()"/>
+    <button class="login-btn" id="loginActionBtn" onclick="handlePasswordAction()">進入系統</button>
     <div class="login-error" id="loginError"></div>
+    <div style="margin-top:14px;">
+      <button type="button" id="resetPasswordLink" style="display:none;background:none;border:none;color:rgba(255,255,255,0.35);font-size:11px;text-decoration:underline;cursor:pointer;" onclick="resetLocalPassword()">忘記密碼？點此重設</button>
+    </div>
     <div class="login-footer">EMPLOYEE PORTAL · 小導陪你走完每一步</div>
   </div>
 </div>
@@ -212,20 +216,79 @@
 
 <script>
 // ============================================
-// 登入
+// 登入（使用者自行設定密碼，存於本機瀏覽器）
 // ============================================
-function checkPassword() {
+const LOCAL_PW_STORAGE = 'user_local_password';
+
+function getStoredPassword() {
+  return localStorage.getItem(LOCAL_PW_STORAGE) || '';
+}
+
+function initLoginScreen() {
+  var stored = getStoredPassword();
+  var subtitle = document.getElementById('loginSubtitle');
+  var confirmInput = document.getElementById('passwordConfirmInput');
+  var actionBtn = document.getElementById('loginActionBtn');
+  var resetLink = document.getElementById('resetPasswordLink');
+
+  if (stored) {
+    subtitle.innerHTML = '請輸入你先前設定的密碼';
+    confirmInput.classList.add('hidden');
+    actionBtn.textContent = '進入系統';
+    resetLink.style.display = 'inline';
+  } else {
+    subtitle.innerHTML = '第一次使用，請設定一組屬於你自己的密碼<br>之後每次打開都需要輸入這組密碼';
+    confirmInput.classList.remove('hidden');
+    actionBtn.textContent = '設定密碼並繼續';
+    resetLink.style.display = 'none';
+  }
+}
+
+function handlePasswordAction() {
+  var stored = getStoredPassword();
   var input = document.getElementById('passwordInput').value;
   var error = document.getElementById('loginError');
-  if (input === 'Gkgk0681') {
+
+  if (stored) {
+    if (input === stored) {
+      document.getElementById('loginOverlay').classList.add('hidden');
+      document.getElementById('portal').classList.add('visible');
+      sessionStorage.setItem('ep_auth', '1');
+    } else {
+      error.textContent = '密碼錯誤，請重新輸入';
+      document.getElementById('passwordInput').value = '';
+    }
+  } else {
+    var confirmValue = document.getElementById('passwordConfirmInput').value;
+    if (input.length < 4) {
+      error.textContent = '密碼至少需要 4 個字元';
+      return;
+    }
+    if (input !== confirmValue) {
+      error.textContent = '兩次輸入的密碼不一致，請重新輸入';
+      return;
+    }
+    localStorage.setItem(LOCAL_PW_STORAGE, input);
+    error.textContent = '';
     document.getElementById('loginOverlay').classList.add('hidden');
     document.getElementById('portal').classList.add('visible');
     sessionStorage.setItem('ep_auth', '1');
-  } else {
-    error.textContent = '密碼錯誤，請重新輸入';
-    document.getElementById('passwordInput').value = '';
   }
 }
+
+function resetLocalPassword() {
+  var confirmed = confirm('確定要重設密碼嗎？重設後需要重新設定一組新密碼才能繼續使用。');
+  if (!confirmed) return;
+  localStorage.removeItem(LOCAL_PW_STORAGE);
+  sessionStorage.removeItem('ep_auth');
+  document.getElementById('passwordInput').value = '';
+  document.getElementById('passwordConfirmInput').value = '';
+  document.getElementById('loginError').textContent = '';
+  initLoginScreen();
+}
+
+document.addEventListener('DOMContentLoaded', initLoginScreen);
+
 if (sessionStorage.getItem('ep_auth') === '1') {
   document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('loginOverlay').classList.add('hidden');
@@ -296,7 +359,7 @@ function renderCards() {
       <div class="card-pills">
         ${m.pills.map(p => `<span class="pill">${p}</span>`).join('')}
       </div>
-      <a class="card-btn" href="${m.url}?auth=Gkgk0681">進入模組 ${parseInt(m.id)} →</a>
+      <a class="card-btn" href="${m.url}">進入模組 ${parseInt(m.id)} →</a>
     </div>
   `).join('');
 }
